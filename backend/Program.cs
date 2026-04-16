@@ -1,41 +1,36 @@
+using Microsoft.EntityFrameworkCore;
+using backend.context.identity;
+using backend.context.common.infrastructure.interceptors;
+using backend.context.common.api.middlewares;
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddScoped<DomainEventInterceptor>();
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+           .AddInterceptors(sp.GetRequiredService<DomainEventInterceptor>());
+});
+builder.Services.AddIdentityModule();
+builder.Services.AddControllers();
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
+app.UseMiddleware<ExceptionMiddleware>();
+app.MapControllers();
 app.UseHttpsRedirection();
-
-var summaries = new[]
+app.MapGet("/test-db", async (AppDbContext dbContext) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    try
+    {
+        var canConnect = await dbContext.Database.CanConnectAsync();
+        return canConnect 
+            ? Results.Ok(new { status = "success", message = "Database connection successful!" }) 
+            : Results.Problem("Cannot connect to database.");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"Database connection failed: {ex.Message}");
+    }
 })
-.WithName("GetWeatherForecast");
+.WithName("TestDbConnection");
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
