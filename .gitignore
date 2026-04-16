@@ -1,11 +1,5 @@
-[Bb]in/
-[Oo]bj/
-*.log
-*.txt
-.vs/
-.vscode/
-.idea/
-*.user
-*.suo
-
-appsettings.*.json
+**/appsettings.json
+**/appsettings.*.json
+**/bin/
+**/obj/
+**/build.log
