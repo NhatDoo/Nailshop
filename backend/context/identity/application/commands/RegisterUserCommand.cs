@@ -1,3 +1,6 @@
+using backend.context.common.application;
+using backend.context.identity.domain.vo;
+
 namespace backend.context.identity.application.commands;
 
 public record RegisterUserCommand(
@@ -6,4 +9,4 @@ public record RegisterUserCommand(
     string Email,
     string Password,
     string Role
-);
+) : ICommand<UserIdVO>;

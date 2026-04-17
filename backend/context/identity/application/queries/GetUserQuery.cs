@@ -1,9 +1,9 @@
 using System;
-using backend.context.identity.domain.vo;
+using backend.context.common.application;
 
 namespace backend.context.identity.application.queries;
 
-public record GetUserQuery(Guid UserId);
+public record GetUserQuery(Guid UserId) : IQuery<UserResponse>;
 
 public record UserResponse(
     Guid Id,

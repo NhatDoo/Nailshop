@@ -14,13 +14,14 @@ public record RoleVO
 
     public RoleVO(string role)
     {
-        if (Enum.TryParse<UserRole>(role, true, out var result))
+        // Debug: Enum.TryParse alone is not enough for numeric strings, must use Enum.IsDefined
+        if (Enum.TryParse<UserRole>(role, true, out var result) && Enum.IsDefined(typeof(UserRole), result))
         {
             Value = result;
         }
         else
         {
-            throw new ArgumentException("Role must be either 'Customer' or 'Admin'.");
+            throw new ArgumentException("Role phải là Customer hoặc Admin.");
         }
     }
 

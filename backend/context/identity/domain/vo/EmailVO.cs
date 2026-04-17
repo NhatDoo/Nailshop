@@ -6,7 +6,7 @@ namespace backend.context.identity.domain.vo;
 public record EmailVO
 {
     private static readonly Regex EmailRegex = new(
-        @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public string Value { get; }
@@ -15,12 +15,12 @@ public record EmailVO
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("Email cannot be empty.");
+            throw new ArgumentException("Email không được để trống.");
         }
 
-        if (!EmailRegex.IsMatch(value))
+        if (value.Length > 255 || value.Contains("..") || !EmailRegex.IsMatch(value))
         {
-            throw new ArgumentException("Invalid email format. Email must contain '@' and follow standard format.");
+            throw new ArgumentException("Định dạng Email không hợp lệ hoặc quá dài.");
         }
 
         // Kiểm tra ký tự đặc biệt ngoài @ và các ký tự email hợp lệ (tùy chỉnh nếu cần khắc khe hơn)

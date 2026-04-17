@@ -12,10 +12,14 @@ namespace backend.context.common.infrastructure.interceptors;
 public class DomainEventInterceptor : SaveChangesInterceptor
 {
     private readonly UserRegisteredEventHandler _userRegisteredEventHandler;
+    private readonly backend.context.booking.application.events.BookingCreatedEventHandler _bookingCreatedEventHandler;
 
-    public DomainEventInterceptor(UserRegisteredEventHandler userRegisteredEventHandler)
+    public DomainEventInterceptor(
+        UserRegisteredEventHandler userRegisteredEventHandler,
+        backend.context.booking.application.events.BookingCreatedEventHandler bookingCreatedEventHandler)
     {
         _userRegisteredEventHandler = userRegisteredEventHandler;
+        _bookingCreatedEventHandler = bookingCreatedEventHandler;
     }
 
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
@@ -40,6 +44,10 @@ public class DomainEventInterceptor : SaveChangesInterceptor
                 if (domainEvent is UserRegisteredEvent userEvent)
                 {
                     await _userRegisteredEventHandler.HandleAsync(userEvent);
+                }
+                else if (domainEvent is backend.context.booking.domain.events.BookingCreatedEvent bookingEvent)
+                {
+                    await _bookingCreatedEventHandler.HandleAsync(bookingEvent);
                 }
             }
             entity.ClearDomainEvents();

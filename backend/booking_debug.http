@@ -1,0 +1,45 @@
+@hostname = localhost
+@port = 5000
+@host = http://{{hostname}}:{{port}}
+
+### 1. Đăng ký tài khoản mới (Nếu chưa có)
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "ten": "Khách Hàng Test",
+  "sdt": "0987654321",
+  "email": "customer@test.com",
+  "password": "Password123!",
+  "role": "Customer"
+}
+
+### 2. Đăng nhập để lấy Token
+# @name login
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "customer@test.com",
+  "password": "Password123!"
+}
+
+### Lưu Token từ kết quả login
+@token = {{login.response.body.accessToken}}
+@customerId = {{login.response.body.id}}
+
+### 3. Đặt lịch hẹn mới (Yêu cầu Token)
+POST {{host}}/api/booking
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "serviceName": "Làm móng Gel cao cấp",
+  "price": 250000,
+  "bookingTime": "2026-05-20T10:00:00Z",
+  "note": "Muốn làm màu xanh pastel"
+}
+
+### 4. Xem danh sách lịch hẹn của tôi
+GET {{host}}/api/booking/my
+Authorization: Bearer {{token}}

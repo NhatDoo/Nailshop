@@ -1,9 +1,10 @@
 using System;
+using backend.context.common.domain;
 using backend.context.identity.domain.vo;
 
 namespace backend.context.identity.domain.events;
 
-public record UserRegisteredEvent
+public record UserRegisteredEvent : IDomainEvent
 {
     public UserIdVO UserId { get; }
     public EmailVO Email { get; }

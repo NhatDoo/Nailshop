@@ -14,7 +14,7 @@ public record PhoneNumberVO
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException("Phone number cannot be empty.");
+            throw new ArgumentException("Số điện thoại không được để trống.");
         }
 
         // Loại bỏ khoảng trắng hoặc ký tự đặc biệt nếu có trước khi check (Tùy chọn)
@@ -22,7 +22,7 @@ public record PhoneNumberVO
 
         if (!PhoneRegex.IsMatch(sanitizedValue))
         {
-            throw new ArgumentException("Invalid phone number format. It should be a valid Vietnamese phone number.");
+            throw new ArgumentException("Số điện thoại không hợp lệ.");
         }
 
         Value = sanitizedValue;

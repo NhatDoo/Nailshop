@@ -1,0 +1,35 @@
+@hostname = localhost
+@port = 5017
+@host = http://{{hostname}}:{{port}}
+
+### 1. Test kết nối Database
+GET {{host}}/test-db
+
+### 2. Đăng ký người dùng mới (Register)
+# @name register
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+    "ten": "Nguyễn Văn A",
+    "sdt": "0912345678",
+    "email": "test@nailshop.com",
+    "password": "Password123!",
+    "role": "Customer"
+}
+
+### 3. Đăng nhập (Login)
+# @name login
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+    "email": "test@nailshop.com",
+    "password": "Password123!"
+}
+
+### 4. Truy cập tài nguyên yêu cầu Token (Sau khi copy AccessToken từ bước trên)
+@accessToken = {{login.response.body.accessToken}}
+
+GET {{host}}/api/auth/me
+Authorization: Bearer {{accessToken}}
