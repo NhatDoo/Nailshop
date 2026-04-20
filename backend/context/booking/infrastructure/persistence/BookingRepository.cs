@@ -30,8 +30,19 @@ public class BookingRepository : IBookingRepository
 
     public async Task<IEnumerable<Booking>> GetByCustomerIdAsync(Guid customerId)
     {
+        var targetId = new backend.context.identity.domain.vo.UserIdVO(customerId);
         return await _context.Bookings
-            .Where(b => b.CustomerId.Value == customerId)
+            .Where(b => b.CustomerId == targetId)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Booking>> GetByDateAsync(DateTime date)
+    {
+        var startOfDay = date.Date.ToUniversalTime();
+        var endOfDay = startOfDay.AddDays(1).AddTicks(-1);
+        return await _context.Bookings
+            .Where(b => b.BookingTime >= startOfDay && b.BookingTime <= endOfDay)
+            .OrderBy(b => b.BookingTime)
             .ToListAsync();
     }
 

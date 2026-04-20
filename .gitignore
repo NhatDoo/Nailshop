@@ -1,5 +1,26 @@
-**/appsettings.json
-**/appsettings.*.json
+# .NET
 **/bin/
 **/obj/
-**/build.log
+**/appsettings.json
+**/appsettings.*.json
+*.user
+*.userosscache
+*.sln.docstates
+
+# Node / React
+**/node_modules/
+**/dist/
+**/.env
+**/.env.local
+**/.env.*.local
+.DS_Store
+
+# Logs
+*.log
+build_output.txt
+build_v2.txt
+full_err.txt
+
+# VS Code
+.vscode/
+.idea/

@@ -13,13 +13,16 @@ public class AuthController : ControllerBase
 {
     private readonly ICommandHandler<RegisterUserCommand, UserIdVO> _registerHandler;
     private readonly ICommandHandler<LoginCommand, AuthResponse> _loginHandler;
+    private readonly ICommandHandler<ForgotPasswordCommand, bool> _forgotPasswordHandler;
 
     public AuthController(
         ICommandHandler<RegisterUserCommand, UserIdVO> registerHandler,
-        ICommandHandler<LoginCommand, AuthResponse> loginHandler)
+        ICommandHandler<LoginCommand, AuthResponse> loginHandler,
+        ICommandHandler<ForgotPasswordCommand, bool> forgotPasswordHandler)
     {
         _registerHandler = registerHandler;
         _loginHandler = loginHandler;
+        _forgotPasswordHandler = forgotPasswordHandler;
     }
 
     [HttpPost("register")]
@@ -43,7 +46,14 @@ public class AuthController : ControllerBase
     {
         var command = new LoginCommand(request.Email, request.Password);
         var response = await _loginHandler.HandleAsync(command);
-        
         return Ok(response);
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        await _forgotPasswordHandler.HandleAsync(new ForgotPasswordCommand(request.Email));
+        // Luôn trả Ok để không tiết lộ email có tồn tại hay không
+        return Ok(new { Message = "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi." });
     }
 }

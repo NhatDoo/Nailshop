@@ -16,6 +16,7 @@ public static class BookingModule
         // Handlers
         services.AddScoped<CreateBookingCommandHandler>();
         services.AddScoped<GetMyBookingsQueryHandler>();
+        services.AddScoped<GetAllBookingsForDateQueryHandler>();
         services.AddScoped<backend.context.booking.application.events.BookingCreatedEventHandler>();
 
         return services;

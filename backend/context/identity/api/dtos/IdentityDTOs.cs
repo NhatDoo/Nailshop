@@ -19,3 +19,5 @@ public record AuthResponse(
     string Email,
     string Role
 );
+
+public record ForgotPasswordRequest(string Email);

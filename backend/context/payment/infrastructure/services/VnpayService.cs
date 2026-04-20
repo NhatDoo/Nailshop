@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -25,12 +26,12 @@ public class VnpayService : IVnpayService
         var vnp_TmnCode = _config["Vnpay:TmnCode"];
         var vnp_HashSecret = _config["Vnpay:HashSecret"];
 
-        var requestData = new SortedList<string, string>
+        var requestData = new SortedDictionary<string, string>(StringComparer.Ordinal)
         {
             { "vnp_Version", "2.1.0" },
             { "vnp_Command", "pay" },
             { "vnp_TmnCode", vnp_TmnCode! },
-            { "vnp_Amount", (payment.Amount * 100).ToString() }, // VNPAY nhận số tiền x100
+            { "vnp_Amount", (payment.Amount * 100).ToString() },
             { "vnp_CreateDate", payment.CreatedAt.ToString("yyyyMMddHHmmss") },
             { "vnp_CurrCode", payment.Currency },
             { "vnp_IpAddr", payment.IpAddress },
@@ -46,7 +47,6 @@ public class VnpayService : IVnpayService
             requestData.Add("vnp_BankCode", payment.BankCode);
         }
 
-        // Tạo chuỗi query string
         var queryString = new StringBuilder();
         var hashData = new StringBuilder();
 
@@ -54,18 +54,21 @@ public class VnpayService : IVnpayService
         {
             if (!string.IsNullOrEmpty(kv.Value))
             {
+                var encodedKey = HttpUtility.UrlEncode(kv.Key);
                 var encodedValue = HttpUtility.UrlEncode(kv.Value);
-                queryString.Append($"{kv.Key}={encodedValue}&");
-                hashData.Append($"{kv.Key}={encodedValue}&");
+
+                queryString.Append($"{encodedKey}={encodedValue}&");
+                hashData.Append($"{encodedKey}={encodedValue}&");
             }
         }
 
-        queryString.Length--; // Bỏ dấu & cuối cùng
-        hashData.Length--;
+        // remove last '&'
+        if (queryString.Length > 0) queryString.Length--;
+        if (hashData.Length > 0) hashData.Length--;
 
-        // Tính toán hash
-        var vnp_SecureHash = HmacSha256(vnp_HashSecret!, hashData.ToString());
-        queryString.Append($"&vnp_SecureHash={vnp_SecureHash}");
+        var secureHash = HmacSha512(vnp_HashSecret!, hashData.ToString());
+
+        queryString.Append($"&vnp_SecureHash={secureHash}");
 
         return $"{vnp_Url}?{queryString}";
     }
@@ -73,47 +76,48 @@ public class VnpayService : IVnpayService
     public bool ValidateSignature(IDictionary<string, string> responseData, string inputHash)
     {
         var vnp_HashSecret = _config["Vnpay:HashSecret"];
-        var hashData = new StringBuilder();
 
-        // Sort data
-        var sortedParams = new SortedList<string, string>();
+        var sortedParams = new SortedDictionary<string, string>(StringComparer.Ordinal);
+
         foreach (var kv in responseData)
         {
-            if (!string.IsNullOrEmpty(kv.Key) && kv.Key.StartsWith("vnp_") && kv.Key != "vnp_SecureHash" && kv.Key != "vnp_SecureHashType")
+            if (!string.IsNullOrEmpty(kv.Key)
+                && kv.Key.StartsWith("vnp_")
+                && kv.Key != "vnp_SecureHash"
+                && kv.Key != "vnp_SecureHashType")
             {
                 sortedParams.Add(kv.Key, kv.Value);
             }
         }
 
+        var hashData = new StringBuilder();
+
         foreach (var kv in sortedParams)
         {
             if (!string.IsNullOrEmpty(kv.Value))
             {
-                hashData.Append($"{kv.Key}={HttpUtility.UrlEncode(kv.Value)}&");
+                var encodedKey = HttpUtility.UrlEncode(kv.Key);
+                var encodedValue = HttpUtility.UrlEncode(kv.Value);
+
+                hashData.Append($"{encodedKey}={encodedValue}&");
             }
         }
 
-        if (hashData.Length > 0)
-        {
-            hashData.Length--;
-        }
+        if (hashData.Length > 0) hashData.Length--;
 
-        var expectedHash = HmacSha256(vnp_HashSecret!, hashData.ToString());
+        var expectedHash = HmacSha512(vnp_HashSecret!, hashData.ToString());
 
-        return expectedHash.Equals(inputHash, StringComparison.InvariantCultureIgnoreCase);
+        return expectedHash.Equals(inputHash, StringComparison.OrdinalIgnoreCase);
     }
 
-    private string HmacSha256(string key, string inputData)
+    private string HmacSha512(string key, string inputData)
     {
         var keyBytes = Encoding.UTF8.GetBytes(key);
         var inputBytes = Encoding.UTF8.GetBytes(inputData);
-        using var hmac = new HMACSHA256(keyBytes);
-        var hashValue = hmac.ComputeHash(inputBytes);
-        
-        var hex = new StringBuilder(hashValue.Length * 2);
-        foreach (var b in hashValue)
-            hex.AppendFormat("{0:x2}", b);
-            
-        return hex.ToString();
+
+        using var hmac = new HMACSHA512(keyBytes);
+        var hashBytes = hmac.ComputeHash(inputBytes);
+
+        return BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
     }
 }

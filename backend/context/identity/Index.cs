@@ -25,6 +25,7 @@ public static class IdentityModule
         // 2. Application Handlers (Commands/Queries)
         services.AddScoped<ICommandHandler<RegisterUserCommand, UserIdVO>, RegisterUserCommandHandler>();
         services.AddScoped<ICommandHandler<LoginCommand, AuthResponse>, LoginCommandHandler>();
+        services.AddScoped<ICommandHandler<ForgotPasswordCommand, bool>, ForgotPasswordCommandHandler>();
         services.AddScoped<IQueryHandler<GetUserQuery, UserResponse>, GetUserQueryHandler>();
         
         // 3. Events

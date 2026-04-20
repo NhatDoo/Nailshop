@@ -5,6 +5,9 @@ using backend.context.common.api.middlewares;
 using backend.context.booking;
 using backend.context.naildesign;
 using backend.context.payment;
+using backend.context.todo;
+using backend.context.notification;
+using backend.context.nailservice;
 using backend.context.common.application;
 using backend.context.common.infrastructure.storage;
 using Microsoft.OpenApi.Models;
@@ -84,11 +87,29 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// CORS – cho phép Frontend Vite gọi API
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendDev", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:5174"
+              )
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // Register Modules
 builder.Services.AddIdentityModule();
 builder.Services.AddBookingModule();
 builder.Services.AddNailDesignModule();
 builder.Services.AddPaymentModule();
+builder.Services.AddTodoModule();
+builder.Services.AddNotificationModule();
+builder.Services.AddNailServiceModule();
 
 // Register MinIO Storage Service
 builder.Services.AddMinio(configureClient => configureClient
@@ -112,6 +133,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseCors("FrontendDev");    // CORS phải đứng trước Auth
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
@@ -131,5 +153,39 @@ app.MapGet("/test-db", async (AppDbContext dbContext) =>
     }
 })
 .WithName("TestDbConnection");
+
+using (var scope = app.Services.CreateScope())
+{
+    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+
+    var adminEmail = config["AdminUser:Email"];
+    if (!string.IsNullOrEmpty(adminEmail))
+    {
+        // Kiểm tra xem Admin có chưa (query thẳng bằng EF)
+        var adminExists = dbContext.Set<backend.context.identity.domain.entity.User>()
+            .Any(u => u.Email == new backend.context.identity.domain.vo.EmailVO(adminEmail));
+
+        if (!adminExists)
+        {
+            var adminPassword = config["AdminUser:Password"];
+            var adminName = config["AdminUser:Name"];
+            var adminPhone = config["AdminUser:Phone"];
+
+            var adminUser = backend.context.identity.domain.entity.User.Create(
+                ten: adminName,
+                sdt: adminPhone,
+                email: adminEmail,
+                role: "Admin",
+                passwordHash: passwordHasher.HashPassword(adminPassword)
+            );
+
+            dbContext.Set<backend.context.identity.domain.entity.User>().Add(adminUser);
+            dbContext.SaveChanges();
+            Console.WriteLine($"[Seeder] Đã tạo thành công tài khoản Admin: {adminEmail}");
+        }
+    }
+}
 
 app.Run();

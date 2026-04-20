@@ -13,7 +13,6 @@ namespace backend.context.naildesign.api.controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
 public class NailDesignController : ControllerBase
 {
     private const string BucketName = "nail-designs";
@@ -43,7 +42,8 @@ public class NailDesignController : ControllerBase
         _storageService = storageService;
     }
 
-    /// <summary>GET /api/naildesign - Lấy tất cả mẫu nail Active</summary>
+    /// <summary>GET /api/naildesign - Lấy tất cả mẫu nail Active (public)</summary>
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -51,7 +51,8 @@ public class NailDesignController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>GET /api/naildesign/{id}</summary>
+    /// <summary>GET /api/naildesign/{id} (public)</summary>
+    [AllowAnonymous]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
@@ -59,7 +60,8 @@ public class NailDesignController : ControllerBase
         return result == null ? NotFound($"Không tìm thấy mẫu nail với Id: {id}") : Ok(result);
     }
 
-    /// <summary>POST /api/naildesign - Tạo mẫu nail + upload ảnh lên MinIO</summary>
+    /// <summary>POST /api/naildesign - Tạo mẫu nail + upload ảnh lên MinIO (Admin)</summary>
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> Create([FromForm] CreateNailDesignRequest request)
@@ -103,7 +105,8 @@ public class NailDesignController : ControllerBase
         catch (Exception ex) { return StatusCode(500, $"Lỗi hệ thống: {ex.Message}"); }
     }
 
-    /// <summary>PUT /api/naildesign/{id}</summary>
+    /// <summary>PUT /api/naildesign/{id} (Admin)</summary>
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, UpdateNailDesignRequest request)
     {
@@ -117,7 +120,8 @@ public class NailDesignController : ControllerBase
         catch (Exception ex) { return NotFound(ex.Message); }
     }
 
-    /// <summary>DELETE /api/naildesign/{id} - Soft Delete</summary>
+    /// <summary>DELETE /api/naildesign/{id} - Soft Delete (Admin)</summary>
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {

@@ -33,6 +33,8 @@ public class Booking : AggregateRoot
 
     public static Booking Create(UserIdVO customerId, string serviceName, decimal price, DateTime bookingTime, string? note)
     {
+        var utcBookingTime = bookingTime.ToUniversalTime();
+
         if (string.IsNullOrWhiteSpace(serviceName))
         {
             throw new ArgumentException("Tên dịch vụ không được để trống.");
@@ -43,7 +45,7 @@ public class Booking : AggregateRoot
             throw new ArgumentException("Tên dịch vụ không được dài quá 200 ký tự.");
         }
 
-        if (bookingTime <= DateTime.UtcNow)
+        if (utcBookingTime <= DateTime.UtcNow)
         {
             throw new ArgumentException("Thời gian đặt lịch phải ở trong tương lai.");
         }
@@ -53,14 +55,14 @@ public class Booking : AggregateRoot
             throw new ArgumentException("Giá dịch vụ không được âm.");
         }
 
-        var booking = new Booking(Guid.NewGuid(), customerId, serviceName, price, bookingTime, note);
+        var booking = new Booking(Guid.NewGuid(), customerId, serviceName, price, utcBookingTime, note);
 
         // Bắn sự kiện Domain Event
         booking.AddDomainEvent(new BookingCreatedEvent(
             booking.Id, 
             customerId.Value, 
             serviceName, 
-            bookingTime));
+            utcBookingTime));
 
         return booking;
     }
@@ -81,5 +83,11 @@ public class Booking : AggregateRoot
             throw new Exception("Không thể hủy lịch hẹn đã hoàn thành.");
         }
         Status = BookingStatus.Cancelled;
+    }
+
+    public void Complete()
+    {
+        // Chấp nhận Complete ngay cả khi đang Pending (nếu thời gian đã qua)
+        Status = BookingStatus.Completed;
     }
 }
