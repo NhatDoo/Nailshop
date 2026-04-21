@@ -3,6 +3,7 @@ import axiosClient from '../utils/axiosClient';
 import { useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import StatusBadge from '../components/common/StatusBadge';
 
 const MyBookings = () => {
     const { isAuthenticated } = useSelector(state => state.auth);
@@ -30,16 +31,7 @@ const MyBookings = () => {
         fetchBookings();
     }, [isAuthenticated, navigate]);
 
-    // Badge color mapping
-    const getStatusBadge = (status) => {
-        switch (status) {
-            case 'Pending': return <span className="badge badge-warning" style={{ fontSize: 13, padding: '6px 10px' }}>Chờ xác nhận</span>;
-            case 'Confirmed': return <span className="badge badge-primary" style={{ fontSize: 13, padding: '6px 10px' }}>Đã xác nhận</span>;
-            case 'Completed': return <span className="badge badge-success" style={{ fontSize: 13, padding: '6px 10px' }}>Đã hoàn thành</span>;
-            case 'Cancelled': return <span className="badge badge-danger" style={{ fontSize: 13, padding: '6px 10px' }}>Đã huỷ</span>;
-            default: return <span className="badge badge-secondary">{status}</span>;
-        }
-    }
+
 
     if (loading) return <div style={{ minHeight: '60vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Đang tải lịch hẹn...</div>;
 
@@ -87,7 +79,7 @@ const MyBookings = () => {
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                                         <h4 style={{ color: '#c2185b', margin: 0, fontSize: 18, fontWeight: 'bold' }}>{b.serviceName}</h4>
-                                        {getStatusBadge(b.status)}
+                                        <StatusBadge status={b.status} />
                                     </div>
 
                                     <div style={{ marginBottom: 12 }}>

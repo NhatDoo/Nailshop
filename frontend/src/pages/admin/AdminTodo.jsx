@@ -3,6 +3,7 @@ import axiosClient from '../../utils/axiosClient';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import StatusBadge from '../../components/common/StatusBadge';
 
 const AdminTodo = () => {
     const { user } = useSelector(s => s.auth);
@@ -31,15 +32,7 @@ const AdminTodo = () => {
         }
     };
 
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'Pending': return '#ffc107';
-            case 'Confirmed': return '#2196f3';
-            case 'Completed': return '#4caf50';
-            case 'Cancelled': return '#f44336';
-            default: return '#9e9e9e';
-        }
-    };
+
 
     return (
         <motion.div
@@ -112,17 +105,8 @@ const AdminTodo = () => {
 
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
                                             <div style={{ textAlign: 'right' }}>
-                                                <div style={{ fontWeight: 'bold', color: '#e91e8c' }}>{(b.price * 100).toLocaleString()}đ</div>
-                                                <div style={{
-                                                    fontSize: 11,
-                                                    color: '#fff',
-                                                    background: getStatusColor(b.status),
-                                                    padding: '2px 8px',
-                                                    borderRadius: 10,
-                                                    display: 'inline-block'
-                                                }}>
-                                                    {b.status}
-                                                </div>
+                                                <div style={{ fontWeight: 'bold', color: '#e91e8c' }}>{(b.price * 1000).toLocaleString()}đ</div>
+                                                <StatusBadge status={b.status} />
                                             </div>
                                         </div>
                                     </div>
