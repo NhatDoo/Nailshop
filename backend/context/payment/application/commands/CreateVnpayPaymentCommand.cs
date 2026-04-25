@@ -2,9 +2,11 @@ using System;
 
 namespace backend.context.payment.application.commands;
 
+/// <summary>
+/// Amount bị loại bỏ — handler tự tra BookingRepository.
+/// </summary>
 public record CreateVnpayPaymentCommand(
     Guid BookingId,
-    long Amount,  // Số tiền chuẩn (VND) chưa nhân 100
     string OrderInfo,
     string ReturnUrl,
     string IpAddress,

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using backend.context.booking.application.commands;
 using backend.context.booking.application.queries;
+using backend.context.booking.domain.repo;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,38 +17,60 @@ public class BookingController : ControllerBase
     private readonly CreateBookingCommandHandler _createBookingHandler;
     private readonly GetMyBookingsQueryHandler _getMyBookingsHandler;
     private readonly GetAllBookingsForDateQueryHandler _getByDateHandler;
+    private readonly IBookingRepository _bookingRepository;
 
     public BookingController(
         CreateBookingCommandHandler createBookingHandler,
         GetMyBookingsQueryHandler getMyBookingsHandler,
-        GetAllBookingsForDateQueryHandler getByDateHandler)
+        GetAllBookingsForDateQueryHandler getByDateHandler,
+        IBookingRepository bookingRepository)
     {
         _createBookingHandler = createBookingHandler;
         _getMyBookingsHandler = getMyBookingsHandler;
         _getByDateHandler = getByDateHandler;
+        _bookingRepository = bookingRepository;
     }
 
-    /// <summary>GET /api/booking/available-slots?date=2026-04-20 - Public: xem giờ còn trống</summary>
+    /// <summary>
+    /// GET /api/booking/available-slots?date=2026-04-20
+    /// Public: trả về các khung giờ còn trống trong ngày (dựa trên DB thực tế).
+    /// </summary>
     [AllowAnonymous]
     [HttpGet("available-slots")]
-    public IActionResult GetAvailableSlots([FromQuery] string? date)
+    public async Task<IActionResult> GetAvailableSlots([FromQuery] string? date)
     {
-        // Parse ngày, mặc định hôm nay
-        var targetDate = DateTime.Today;
+        // Parse ngày theo múi giờ VN, mặc định hôm nay
+        var vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var nowVn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTimeZone);
+
+        var targetDate = nowVn.Date;
         if (!string.IsNullOrEmpty(date) && DateTime.TryParse(date, out var parsed))
             targetDate = parsed.Date;
 
-        // Khung giờ hoạt động: 8:00 - 18:00, mỗi slot 30 phút
+        // Khung giờ hoạt động: 8:00 - 18:00, mỗi slot 30 phút → 20 slots
         var allSlots = Enumerable.Range(0, 20)
             .Select(i => targetDate.AddHours(8).AddMinutes(i * 30))
             .ToList();
 
-        return Ok(allSlots.Select(s => new
+        // Kiểm tra từng slot với DB
+        var result = new List<object>();
+        foreach (var slot in allSlots)
         {
-            dateTime = s,
-            display = s.ToString("HH:mm"),
-            isoString = s.ToString("o")
-        }));
+            // Quy đổi slot local VN sang UTC để tra DB
+            var slotUtc = TimeZoneInfo.ConvertTimeToUtc(
+                DateTime.SpecifyKind(slot, DateTimeKind.Unspecified), vnTimeZone);
+
+            var isBooked = await _bookingRepository.HasConflictAsync(slotUtc);
+            result.Add(new
+            {
+                dateTime   = slot,
+                display    = slot.ToString("HH:mm"),
+                isoString  = slotUtc.ToString("o"),
+                isAvailable = !isBooked
+            });
+        }
+
+        return Ok(result);
     }
 
     /// <summary>GET /api/booking/my - Lấy booking của tôi (cần login)</summary>
@@ -55,7 +78,6 @@ public class BookingController : ControllerBase
     [HttpGet("my")]
     public async Task<IActionResult> GetMyBookings()
     {
-        // Lấy UserId từ Claims trong Token JWT
         var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
 
@@ -77,19 +99,20 @@ public class BookingController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>POST /api/booking - Tạo booking mới (cần login)</summary>
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Create(backend.context.booking.api.dtos.CreateBookingRequest request)
     {
         try
         {
-            // Lấy UserId từ Token an toàn
             var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
 
+            // Price KHÔNG nhận từ client — handler tự tra DB
             var command = new CreateBookingCommand(
                 Guid.Parse(userIdStr),
-                request.ServiceName,
-                request.Price,
+                request.ServiceId,
                 request.BookingTime,
                 request.Note
             );
@@ -97,13 +120,8 @@ public class BookingController : ControllerBase
             var bookingId = await _createBookingHandler.HandleAsync(command);
             return Ok(new { Message = "Đặt lịch thành công!", BookingId = bookingId });
         }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, "Có lỗi xảy ra: " + ex.Message);
-        }
+        catch (ArgumentException ex)        { return BadRequest(ex.Message); }
+        catch (InvalidOperationException ex){ return Conflict(ex.Message); }
+        catch (Exception ex)                { return StatusCode(500, "Có lỗi xảy ra: " + ex.Message); }
     }
 }

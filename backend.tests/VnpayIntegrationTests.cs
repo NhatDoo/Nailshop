@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
-using System.Threading.Tasks;
+using System.IO;
 using backend.context.payment.domain.entity;
 using backend.context.payment.infrastructure.services;
 using Microsoft.Extensions.Configuration;
@@ -10,25 +9,42 @@ using Xunit.Abstractions;
 
 namespace Nailshop.Backend.Tests
 {
-    public class VnpayIntegrationTests
+    /// <summary>
+    /// UNIT test cho VnpayService — không gọi mạng thật.
+    /// 
+    /// FIX (Medium):
+    /// 1. Đường dẫn tuyệt đối (d:\...) → dùng BaseDirectory + đi ngược lên project root.
+    /// 2. Gọi HTTP thật ra sandbox VNPAY → đã bỏ hoàn toàn; chỉ kiểm tra URL được tạo ra
+    ///    có đúng format và chứa các tham số bắt buộc.
+    /// 3. Nếu cần integration test thực sự, hãy dùng [Trait("Category","Integration")]
+    ///    và bỏ khỏi CI pipeline.
+    /// </summary>
+    public class VnpayServiceUnitTests
     {
         private readonly ITestOutputHelper _output;
+        private readonly IConfiguration _configuration;
 
-        public VnpayIntegrationTests(ITestOutputHelper output)
+        public VnpayServiceUnitTests(ITestOutputHelper output)
         {
             _output = output;
+
+            // Tìm appsettings.json từ thư mục build, đi lên project root
+            var binDir = AppContext.BaseDirectory;  // e.g. .../backend.tests/bin/Debug/net8.0/
+            var projectRoot = Path.GetFullPath(Path.Combine(binDir, "..", "..", "..", "..", "backend"));
+            var settingsPath = Path.Combine(projectRoot, "appsettings.json");
+
+            _configuration = new ConfigurationBuilder()
+                .AddJsonFile(settingsPath, optional: false, reloadOnChange: false)
+                .AddEnvironmentVariables() // CI có thể override qua env vars
+                .Build();
         }
 
         [Fact]
-        public async Task TestVnpayUrlAndCheckErrorCode70()
+        public void CreatePaymentUrl_ShouldReturnValidUrl_WithRequiredParams()
         {
-            var configuration = new ConfigurationBuilder()
-                .AddJsonFile(@"d:\Project\Nailshop\backend\appsettings.json", optional: false, reloadOnChange: true)
-                .Build();
+            // Arrange
+            var vnpayService = new VnpayService(_configuration);
 
-            var vnpayService = new VnpayService(configuration);
-
-            // 2. Create mock VnpayPayment
             var payment = VnpayPayment.Create(
                 bookingId: Guid.NewGuid(),
                 amount: 100000,
@@ -39,36 +55,32 @@ namespace Nailshop.Backend.Tests
                 orderType: "other"
             );
 
-            // 3. Generate URL
+            // Act
             var url = vnpayService.CreatePaymentUrl(payment);
             _output.WriteLine($"Generated VNPAY URL: {url}");
 
-            // 4. Call URL using HttpClient to check response
-            using var client = new HttpClient();
-            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-            
-            var response = await client.GetAsync(url);
-            var content = await response.Content.ReadAsStringAsync();
-
-            _output.WriteLine($"Response Status: {response.StatusCode}");
-            
-            // Check for error code 70
-            bool hasError70 = content.Contains("errorcode=70") || url.Contains("vnp_ResponseCode=70") || content.Contains("Mã định danh không tồn tại");
-            
-            if (hasError70)
-            {
-                _output.WriteLine("DETECTED ERROR CODE 70: Merchant doesn't exist or Invalid TmnCode");
-            }
-            else
-            {
-                _output.WriteLine("NO ERROR 70 DETECTED. Form loaded successfully or other error.");
-                if (content.Contains("Mã kiểm tra (checksum) không hợp lệ"))
-                {
-                    _output.WriteLine("BUT DETECTED ERROR 97: Invalid Checksum!");
-                }
-            }
-
+            // Assert — kiểm tra URL hợp lệ, không gọi mạng
             Assert.NotNull(url);
+            Assert.StartsWith("https://", url);
+            Assert.Contains("vnp_Amount",      url);
+            Assert.Contains("vnp_TxnRef",      url);
+            Assert.Contains("vnp_SecureHash",  url);
+            Assert.Contains("vnp_ReturnUrl",   url);
+        }
+
+        [Fact]
+        public void CreatePaymentUrl_WithZeroAmount_ShouldThrow()
+        {
+            // Arrange & Act & Assert
+            Assert.Throws<ArgumentException>(() =>
+                VnpayPayment.Create(
+                    bookingId: Guid.NewGuid(),
+                    amount: 0,
+                    orderInfo: "Test",
+                    returnUrl: "http://localhost/return",
+                    ipAddress: "127.0.0.1"
+                )
+            );
         }
     }
 }

@@ -12,4 +12,10 @@ public interface IBookingRepository
     Task<IEnumerable<Booking>> GetByCustomerIdAsync(Guid customerId);
     Task<IEnumerable<Booking>> GetByDateAsync(DateTime date);
     Task UpdateAsync(Booking booking);
+
+    /// <summary>
+    /// Kiểm tra xem slot giờ này đã có booking active (Pending/Confirmed) chưa.
+    /// bookingTimeUtc phải là UTC.
+    /// </summary>
+    Task<bool> HasConflictAsync(DateTime bookingTimeUtc);
 }
